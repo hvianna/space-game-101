@@ -1,0 +1,15 @@
+body {
+	margin: 0 auto;
+	max-width: 100%;
+	width: 1280px;
+}
+
+canvas {
+	width: 100%;
+}
+
+footer {
+	font: .75rem sans-serif;
+	margin-top: 1rem;
+	text-align: center;
+}
