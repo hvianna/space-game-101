@@ -65,6 +65,11 @@ class Enemy {
 	draw( context ) {
 		context.drawImage( this.img, this.posX - this.img.width / 2, this.posY - this.img.height );
 	}
+
+	move( x, y ) {
+		this.posX = x;
+		this.posY = y;
+	}
 }
 
 
@@ -98,7 +103,7 @@ function drawTitle() {
 	background.strokeText( '101', posX, posY + 150 );
 
 	// 'insert coin' blinks on every other second
-	if ( ( performance.now() / 1000 | 0 ) % 2 ) {
+	if ( ( time / 1000 | 0 ) % 2 ) {
 		background.font = '20px sans-serif';
 		background.fillText( 'I N S E R T   C O I N', posX, canvas.height * .7 );
 	}
@@ -123,14 +128,27 @@ function updatePlayer() {
 
 function updateEnemy() {
 	/* TODO:
-	   - logic for enemy movement
+	   - improve enemy movement logic
 	   - add / update shots
 	   - check collisions
 	*/
+	let rangeX = canvas.width / 2;
+	let rangeY = 50;
+
+	// use the timestamp and some trigonometry to create a cyclic ∞-shaped movement path
+	let angle = time / 1000 % ( Math.PI * 2 );
+	let posX = rangeX + Math.cos( angle ) * rangeX;
+	let posY = canvas.height * .3 + Math.sin( angle*2 ) * rangeY;
+
+	// update enemy's position and display it
+	enemy.move( posX, posY );
 	enemy.draw( background );
 }
 
 function gameLoop() {
+
+	// get current timestamp
+	time = performance.now();
 
 	animateBackground();
 	readPlayerInput();
@@ -166,6 +184,7 @@ let enemy  = new Enemy( canvasBg.width / 2, canvasBg.height * .2 );
 
 // start game loop
 
+let time;
 let attractMode = true;
 
 window.requestAnimationFrame( gameLoop );
