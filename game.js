@@ -76,7 +76,7 @@ class Enemy {
 function animateBackground() {
 	// clear main canvas
 	background.fillStyle = '#000';
-	background.fillRect( 0, 0, canvasBg.width, canvasBg.height );
+	background.fillRect( 0, 0, canvas.width, canvas.height );
 
 	// animate parallax layers
 	parallax.forEach( layer => layer.scroll( background ) );
@@ -167,20 +167,20 @@ function gameLoop() {
 
 // globals
 
-let canvasBg   = document.getElementById('canvas');
-let	background = canvasBg.getContext('2d');
+const canvas     = document.getElementById('canvas');
+const background = canvas.getContext('2d');
 
-canvasBg.width = 1280;
-canvasBg.height = 800;
+canvas.width  = 1280;
+canvas.height = 800;
 
-let	parallax = [
-		new Starfield( canvasBg.width, canvasBg.height, { stars: 80, speed: .6, maxSize: 4 } ),
-		new Starfield( canvasBg.width, canvasBg.height, { speed: .2 } ),
-		new Starfield( canvasBg.width, canvasBg.height, { stars: 300, speed: .05, maxSize: 2 } ),
+const parallax = [
+		new Starfield( canvas.width, canvas.height, { stars: 80, speed: .6, maxSize: 4 } ),
+		new Starfield( canvas.width, canvas.height, { speed: .2 } ),
+		new Starfield( canvas.width, canvas.height, { stars: 300, speed: .05, maxSize: 2 } ),
 	];
 
-let player = new Player( canvasBg.width / 2, canvasBg.height * .75 );
-let enemy  = new Enemy( canvasBg.width / 2, canvasBg.height * .2 );
+const player = new Player( canvas.width / 2, canvas.height * .75 );
+const enemy  = new Enemy( canvas.width / 2, canvas.height * .2 );
 
 // start game loop
 
