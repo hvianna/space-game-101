@@ -41,12 +41,41 @@ class Starfield {
 	}
 }
 
+class Shot {
+	constructor( posX, posY, width, height, speed, color ) {
+		this.posX = ( posX - width / 2 ) | 0;
+		this.posY = posY - ( speed < 0 ? height : -height );
+		this.width = width;
+		this.height = height;
+		this.speed = speed;
+		this.color = color;
+	}
+
+	/**
+	 * Update shot position and draws it on canvas
+	 * Returns false if shot went off-screen
+	 */
+	draw( canvas, context ) {
+		this.posY += this.speed;
+		context.fillStyle = this.color;
+		context.fillRect( this.posX, this.posY, this.width, this.height );
+		return this.posY >= -this.height && this.posY <= canvas.height;
+	}
+}
+
 class Player {
 	constructor( posX, posY ) {
 		this.posX = posX; // horizontal center of image
 		this.posY = posY; // top of image
 		this.img = new Image();
 		this.img.src = 'assets/player.png';
+		this.shots = [];
+		this.maxShots = 3;
+	}
+
+	addShot() {
+		if ( this.shots.length < this.maxShots )
+			this.shots.push( new Shot( this.posX, this.posY, 4, 20, -4, '#ff0' ) );
 	}
 
 	draw( context ) {
@@ -60,6 +89,13 @@ class Enemy {
 		this.posY = posY; // bottom of image
 		this.img = new Image();
 		this.img.src = 'assets/enemy.png';
+		this.shots = [];
+		this.maxShots = 10;
+	}
+
+	addShot() {
+		if ( this.shots.length < this.maxShots )
+			this.shots.push( new Shot( this.posX, this.posY, 6, 12, 2, '#f00' ) );
 	}
 
 	draw( context ) {
@@ -124,6 +160,17 @@ function updatePlayer() {
 	   - check collisions
 	*/
 	player.draw( background );
+
+	if ( attractMode ) {
+		// add a new shot randomly
+		if ( Math.random() > .96 )
+			player.addShot();
+	}
+
+	// draw shots and remove those that went off-screen
+	player.shots = player.shots.filter( shot => {
+		return shot.draw( canvas, background );
+	});
 }
 
 function updateEnemy() {
@@ -143,6 +190,16 @@ function updateEnemy() {
 	// update enemy's position and display it
 	enemy.move( posX, posY );
 	enemy.draw( background );
+
+	// add a new shot randomly
+	if ( Math.random() > .96 )
+		enemy.addShot();
+
+	// draw shots and remove those that went off-screen
+	enemy.shots = enemy.shots.filter( shot => {
+		return shot.draw( canvas, background );
+	});
+
 }
 
 function gameLoop() {
