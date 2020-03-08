@@ -152,11 +152,12 @@ function drawTitle() {
 	let posY = canvas.height * .4;
 
 	background.save();
-	background.fillStyle = '#fff';
+	background.fillStyle = '#999';
 	background.font = '180px impact,sans-serif';
 	background.textAlign = 'center';
 	background.fillText( 'Space Game', posX, posY  );
 
+	background.fillStyle = '#fff';
 	background.font = 'bold 200px impact,sans-serif';
 	background.fillText( '101', posX, posY + 150 );
 	background.strokeStyle = '#000';
@@ -165,7 +166,7 @@ function drawTitle() {
 
 	// 'insert coin' blinks on every other second
 	if ( ( time / 1000 | 0 ) % 2 ) {
-		background.font = '20px sans-serif';
+		background.font = 'bold 18px sans-serif';
 		background.fillText( 'I N S E R T   C O I N', posX, canvas.height * .7 );
 	}
 
