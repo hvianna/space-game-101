@@ -9,7 +9,9 @@ canvas {
 }
 
 footer {
+	display: flex;
 	font: .75rem sans-serif;
+	justify-content: space-between;
 	margin-top: 1rem;
 	text-align: center;
 }
