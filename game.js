@@ -67,10 +67,15 @@ class Player {
 	constructor( posX, posY ) {
 		this.posX = posX; // horizontal center of image
 		this.posY = posY; // top of image
-		this.img = new Image();
-		this.img.src = 'assets/player.png';
+		this.ship = new Image();
+		this.ship.src = 'assets/player-sprites.png';
+		this.thruster = new Image();
+		this.thruster.src = 'assets/thruster-sprites.png';
 		this.shots = [];
 		this.maxShots = 3;
+		this.frame = 0;
+		this.direction = 0;
+		this.speed = 2; // horizontal speed (pixels per frame)
 	}
 
 	addShot() {
@@ -78,8 +83,28 @@ class Player {
 			this.shots.push( new Shot( this.posX, this.posY, 4, 20, -4, '#ff0' ) );
 	}
 
-	draw( context ) {
-		context.drawImage( this.img, this.posX - this.img.width / 2, this.posY );
+	draw( canvas, context ) {
+		// update horizontal position
+		this.posX += this.speed * this.direction;
+		if ( this.posX > canvas.width )
+			this.posX = canvas.width;
+		else if ( this.posX < 0 )
+			this.posX = 0;
+
+		if ( this.frame < 6 )
+			this.frame++;
+		else
+			this.frame = 0;
+		let i = this.frame / 2 | 0;
+
+		// draw ship and thruster
+		context.drawImage( this.ship, 64 * this.direction + 64, 0, 64, 64, this.posX - 16, this.posY, 32, 32 );
+		context.drawImage( this.thruster, 64 * i, 0, 64, 64, this.posX - 16, this.posY + 32, 32, 32 );
+	}
+
+	move( x, y ) {
+		this.posX = x;
+		this.posY = y;
 	}
 }
 
@@ -88,7 +113,7 @@ class Enemy {
 		this.posX = posX; // horizontal center of image
 		this.posY = posY; // bottom of image
 		this.img = new Image();
-		this.img.src = 'assets/enemy.png';
+		this.img.src = 'assets/mother-ship.png';
 		this.shots = [];
 		this.maxShots = 10;
 	}
@@ -99,7 +124,7 @@ class Enemy {
 	}
 
 	draw( context ) {
-		context.drawImage( this.img, this.posX - this.img.width / 2, this.posY - this.img.height );
+		context.drawImage( this.img, 0, 0, 144, 64, this.posX - 72, this.posY - 64, 144, 64 );
 	}
 
 	move( x, y ) {
@@ -151,21 +176,23 @@ function readPlayerInput() {
 	/* TODO:
 	   - read player input (keyboard, mouse, touch)
 	*/
+	if ( attractMode ) {
+		// emulate player movement for attract mode
+		if ( Math.random() > .9 )
+			player.direction = ( Math.random() * 3 | 0 ) - 1;
+
+		// fire randomly
+		if ( Math.random() > .96 )
+			player.addShot();
+	}
 }
 
 function updatePlayer() {
 	/* TODO:
 	   - move player coordinates
-	   - add / update shots
 	   - check collisions
 	*/
-	player.draw( background );
-
-	if ( attractMode ) {
-		// add a new shot randomly
-		if ( Math.random() > .96 )
-			player.addShot();
-	}
+	player.draw( canvas, background );
 
 	// draw shots and remove those that went off-screen
 	player.shots = player.shots.filter( shot => {
@@ -176,7 +203,6 @@ function updatePlayer() {
 function updateEnemy() {
 	/* TODO:
 	   - improve enemy movement logic
-	   - add / update shots
 	   - check collisions
 	*/
 	let rangeX = canvas.width / 2;
