@@ -65,21 +65,17 @@ class Shot {
 
 class Player {
 	constructor( posX, posY ) {
-		this.posX = posX; // horizontal center of image
-		this.posY = posY; // top of image
 		this.ship = new Image();
 		this.ship.src = 'assets/player-sprites.png';
 		this.thruster = new Image();
 		this.thruster.src = 'assets/thruster-sprites.png';
-		this.shots = [];
-		this.maxShots = 3;
-		this.frame = 0;
-		this.direction = 0;
+		this.maxBullets = 3; // maximum number of concurrent bullets on screen
 		this.speed = 2; // horizontal speed (pixels per frame)
+		this.reset( posX, posY );
 	}
 
 	addShot() {
-		if ( this.shots.length < this.maxShots )
+		if ( this.shots.length < this.maxBullets )
 			this.shots.push( new Shot( this.posX, this.posY, 4, 20, -4, '#ff0' ) );
 	}
 
@@ -106,6 +102,14 @@ class Player {
 		this.posX = x;
 		this.posY = y;
 	}
+
+	reset( posX, posY ) {
+		this.posX = posX; // horizontal center of image
+		this.posY = posY; // top of image
+		this.shots = [];
+		this.frame = 0;
+		this.direction = 0;
+	}
 }
 
 class Enemy {
@@ -115,11 +119,11 @@ class Enemy {
 		this.img = new Image();
 		this.img.src = 'assets/mother-ship.png';
 		this.shots = [];
-		this.maxShots = 10;
+		this.maxBullets = 10;
 	}
 
 	addShot() {
-		if ( this.shots.length < this.maxShots )
+		if ( this.shots.length < this.maxBullets )
 			this.shots.push( new Shot( this.posX, this.posY, 6, 12, 2, '#f00' ) );
 	}
 
@@ -166,26 +170,31 @@ function drawTitle() {
 
 	// 'insert coin' blinks on every other second
 	if ( ( time / 1000 | 0 ) % 2 ) {
-		background.font = 'bold 18px sans-serif';
-		background.fillText( 'I N S E R T   C O I N', posX, canvas.height * .7 );
+		background.font = '18px "Russo One",sans-serif';
+		background.fillText( 'PRESS ANY KEY TO START', posX, canvas.height * .7 );
 	}
 
 	background.restore();
 }
 
-function readPlayerInput() {
+function readPlayerInput( event ) {
 	/* TODO:
-	   - read player input (keyboard, mouse, touch)
+	   - add touch support
 	*/
-	if ( attractMode ) {
-		// emulate player movement for attract mode
-		if ( Math.random() > .9 )
-			player.direction = ( Math.random() * 3 | 0 ) - 1;
-
-		// fire randomly
-		if ( Math.random() > .96 )
-			player.addShot();
+	// reset player and exit attract mode on keypress
+	if ( attractMode && event.type == 'keyup' ) {
+		player.reset( canvas.width / 2, canvas.height * .75 );
+		attractMode = false;
+		return;
 	}
+
+	// set direction on key pressed; stop movement on key released
+	if ( event.code == 'ArrowLeft' || event.code == 'ArrowRight' )
+		player.direction = ( event.type == 'keydown' && ( event.code == 'ArrowLeft' ) * -1 + ( event.code == 'ArrowRight' ) ) | 0;
+
+	// fire
+	if ( event.code == 'Space' && event.type == 'keyup' )
+		player.addShot();
 }
 
 function updatePlayer() {
@@ -193,6 +202,17 @@ function updatePlayer() {
 	   - move player coordinates
 	   - check collisions
 	*/
+
+	// emulate player controls while in attract mode
+	if ( attractMode ) {
+		if ( Math.random() > .9 )
+			player.direction = ( Math.random() * 3 | 0 ) - 1;
+
+		// fire randomly
+		if ( Math.random() > .96 )
+			player.addShot();
+	}
+
 	player.draw( canvas, background );
 
 	// draw shots and remove those that went off-screen
@@ -235,7 +255,6 @@ function gameLoop() {
 	time = performance.now();
 
 	animateBackground();
-	readPlayerInput();
 	drawTitle();
 	updatePlayer();
 	updateEnemy();
@@ -258,18 +277,25 @@ canvas.width  = 1280;
 canvas.height = 800;
 
 const parallax = [
-		new Starfield( canvas.width, canvas.height, { stars: 80, speed: .6, maxSize: 4 } ),
-		new Starfield( canvas.width, canvas.height, { speed: .2 } ),
-		new Starfield( canvas.width, canvas.height, { stars: 300, speed: .05, maxSize: 2 } ),
-	];
+	new Starfield( canvas.width, canvas.height, { stars: 80, speed: .6, maxSize: 4 } ),
+	new Starfield( canvas.width, canvas.height, { speed: .2 } ),
+	new Starfield( canvas.width, canvas.height, { stars: 300, speed: .05, maxSize: 2 } ),
+];
 
 const player = new Player( canvas.width / 2, canvas.height * .75 );
 const enemy  = new Enemy( canvas.width / 2, canvas.height * .2 );
 
-// start game loop
-
 let time;
+
+// listen for keyboard events
+
+window.addEventListener( 'keydown', readPlayerInput );
+window.addEventListener( 'keyup', readPlayerInput );
+
+// set "attract" mode
+
 let attractMode = true;
 
-window.requestAnimationFrame( gameLoop );
+// start game loop
 
+window.requestAnimationFrame( gameLoop );
