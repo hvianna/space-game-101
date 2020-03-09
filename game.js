@@ -154,6 +154,22 @@ class Enemy {
 
 	draw( context ) {
 		context.drawImage( this.img, 0, 0, 144, 64, this.posX - 72, this.posY - 64, 144, 64 );
+
+		if ( showHitBox ) {
+			let rect = this.hitbox;
+			context.lineWidth = 1;
+			context.strokeStyle = '#8f8';
+			context.strokeRect( rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top );
+		}
+	}
+
+	get hitbox() {
+		return {
+			left  : this.posX - 56,
+			top   : this.posY - 55,
+			right : this.posX + 56,
+			bottom: this.posY - 8
+		}
 	}
 
 	move( x, y ) {
@@ -172,15 +188,18 @@ function animateBackground() {
 	parallax.forEach( layer => layer.scroll( background ) );
 }
 
-function drawTitle() {
+function displayScoreboard() {
+	background.fillStyle = '#fff';
+	background.font = '24px "Russo One",sans-serif';
+	background.textAlign = 'right';
+	background.fillText( score, canvas.width * .95, 50 );
+}
 
-	if ( ! attractMode )
-		return;
+function displayTitle() {
 
 	let posX = canvas.width / 2;
 	let posY = canvas.height * .4;
 
-	background.save();
 	background.fillStyle = '#999';
 	background.font = 'bold 180px "Russo One",sans-serif';
 	background.textAlign = 'center';
@@ -198,8 +217,6 @@ function drawTitle() {
 		background.font = '18px "Russo One",sans-serif';
 		background.fillText( 'PRESS ANY KEY TO START', posX, canvas.height * .7 );
 	}
-
-	background.restore();
 }
 
 /**
@@ -219,8 +236,7 @@ function readPlayerInput( event ) {
 	*/
 	// reset player and exit attract mode on keypress
 	if ( attractMode && event.type == 'keyup' ) {
-		player.reset( canvas.width / 2, canvas.height * .75 );
-		attractMode = false;
+		resetGame();
 		return;
 	}
 
@@ -235,8 +251,7 @@ function readPlayerInput( event ) {
 
 function updatePlayer() {
 	/* TODO:
-	   - move player coordinates
-	   - check collisions
+	   - add explosions!
 	*/
 
 	// emulate player controls while in attract mode
@@ -251,8 +266,16 @@ function updatePlayer() {
 
 	player.draw( canvas, background );
 
-	// draw shots and remove those that went off-screen
+	// draw player bullets
+
+	// we use a filter function to remove "used" bullets from the array
 	player.shots = player.shots.filter( shot => {
+		// check if bullet has hit the enemy
+		if ( ! attractMode && intersect( shot.hitbox, enemy.hitbox ) ) {
+			score += 10;
+			return false; // remove this bullet
+		}
+ 		// bullets that went off-screen return `false`
 		return shot.draw( canvas, background );
 	});
 }
@@ -296,18 +319,25 @@ function updateEnemy() {
 }
 
 function gameLoop() {
-
 	// get current timestamp
 	time = performance.now();
 
 	animateBackground();
-	drawTitle();
+	if ( attractMode )
+		displayTitle();
+	else
+		displayScoreboard();
 	updatePlayer();
 	updateEnemy();
 
 	// schedule next animation frame
 	window.requestAnimationFrame( gameLoop );
+}
 
+function resetGame() {
+	score = 0;
+	player.reset( canvas.width / 2, canvas.height * .75 );
+	attractMode = false;
 }
 
 /**
@@ -333,7 +363,9 @@ const enemy  = new Enemy( canvas.width / 2, canvas.height * .2 );
 
 let time;
 
-let showHitBox = false;
+let score = 0;
+
+let showHitBox = false; // set to `true` to visualize the hitboxes used for collision detection
 
 // listen for keyboard events
 
