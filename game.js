@@ -61,6 +61,15 @@ class Shot {
 		context.fillRect( this.posX, this.posY, this.width, this.height );
 		return this.posY >= -this.height && this.posY <= canvas.height;
 	}
+
+	get hitbox() {
+		return {
+			left  : this.posX,
+			top   : this.posY,
+			right : this.posX + this.width - 1,
+			bottom: this.posY + this.height - 1
+		}
+	}
 }
 
 class Player {
@@ -96,6 +105,22 @@ class Player {
 		// draw ship and thruster
 		context.drawImage( this.ship, 64 * this.direction + 64, 0, 64, 64, this.posX - 16, this.posY, 32, 32 );
 		context.drawImage( this.thruster, 64 * i, 0, 64, 64, this.posX - 16, this.posY + 32, 32, 32 );
+
+		if ( showHitBox ) {
+			let rect = this.hitbox;
+			context.lineWidth = 1;
+			context.strokeStyle = '#8f8';
+			context.strokeRect( rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top );
+		}
+	}
+
+	get hitbox() {
+		return {
+			left  : this.posX - 14,
+			top   : this.posY + 1,
+			right : this.posX + 14,
+			bottom: this.posY + 29
+		}
 	}
 
 	move( x, y ) {
@@ -177,6 +202,17 @@ function drawTitle() {
 	background.restore();
 }
 
+/**
+ * Detect intersection between two rectangles
+ * props to https://stackoverflow.com/a/2752369/2370385
+ */
+function intersect( a, b ) {
+	return ( a.left <= b.right  &&
+	         b.left <= a.right  &&
+	         a.top  <= b.bottom &&
+	         b.top  <= a.bottom    );
+}
+
 function readPlayerInput( event ) {
 	/* TODO:
 	   - add touch support
@@ -224,7 +260,7 @@ function updatePlayer() {
 function updateEnemy() {
 	/* TODO:
 	   - improve enemy movement logic
-	   - check collisions
+	   - improve player death
 	*/
 	let rangeX = canvas.width / 2;
 	let rangeY = 50;
@@ -242,8 +278,18 @@ function updateEnemy() {
 	if ( Math.random() > .96 )
 		enemy.addShot();
 
-	// draw shots and remove those that went off-screen
+	// draw enemy bullets
+
+	// we use a filter function to remove "used" bullets from the array
 	enemy.shots = enemy.shots.filter( shot => {
+		// check if bullet has hit the player's ship
+		if ( ! attractMode && intersect( shot.hitbox, player.hitbox ) ) {
+			alert('GAME OVER!');
+			player.reset( canvas.width / 2, canvas.height * .75 );
+			attractMode = true;
+			return false; // remove this bullet
+		}
+ 		// bullets that went off-screen return `false`
 		return shot.draw( canvas, background );
 	});
 
@@ -286,6 +332,8 @@ const player = new Player( canvas.width / 2, canvas.height * .75 );
 const enemy  = new Enemy( canvas.width / 2, canvas.height * .2 );
 
 let time;
+
+let showHitBox = false;
 
 // listen for keyboard events
 
