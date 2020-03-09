@@ -153,16 +153,16 @@ function drawTitle() {
 
 	background.save();
 	background.fillStyle = '#999';
-	background.font = '180px impact,sans-serif';
+	background.font = 'bold 180px "Russo One",sans-serif';
 	background.textAlign = 'center';
 	background.fillText( 'Space Game', posX, posY  );
 
 	background.fillStyle = '#fff';
-	background.font = 'bold 200px impact,sans-serif';
-	background.fillText( '101', posX, posY + 150 );
+	background.font = 'bold 200px "Russo One",sans-serif';
+	background.fillText( '101', posX, posY + 130 );
 	background.strokeStyle = '#000';
 	background.lineWidth = 6;
-	background.strokeText( '101', posX, posY + 150 );
+	background.strokeText( '101', posX, posY + 130 );
 
 	// 'insert coin' blinks on every other second
 	if ( ( time / 1000 | 0 ) % 2 ) {
