@@ -246,12 +246,12 @@ function displayTitle() {
 	else {
 		background.fillText( 'Space Game', posX, posY );
 
-		background.fillStyle = '#fff';
 		background.font = 'bold 200px "Russo One",sans-serif';
-		background.fillText( '101', posX, posY + 130 );
 		background.strokeStyle = '#000';
-		background.lineWidth = 6;
-		background.strokeText( '101', posX, posY + 130 );
+		background.lineWidth = 10;
+		background.strokeText( '101', posX, posY + 140 );
+		background.fillStyle = '#fff';
+		background.fillText( '101', posX, posY + 140 );
 
 		// 'press any key' blinks on every other second
 		if ( ( time / 1000 | 0 ) % 2 ) {
