@@ -86,8 +86,6 @@ class Player {
 	}
 
 	die() {
-		// stop horizontal movement
-		this.direction = 0;
  		// start explosion animation
 		this.frameExplosion = 0;
 		this.isExploding = true;
