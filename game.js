@@ -78,17 +78,31 @@ class Player {
 		this.ship.src = 'assets/player-sprites.png';
 		this.thruster = new Image();
 		this.thruster.src = 'assets/thruster-sprites.png';
+		this.explosion = new Image();
+		this.explosion.src = 'assets/explosion-sprites.png';
 		this.maxBullets = 3; // maximum number of concurrent bullets on screen
 		this.speed = 2; // horizontal speed (pixels per frame)
 		this.reset( posX, posY );
 	}
 
 	addShot() {
-		if ( this.shots.length < this.maxBullets )
+		if ( ! this.isExploding && ! this.isDead && this.shots.length < this.maxBullets )
 			this.shots.push( new Shot( this.posX, this.posY, 4, 20, -4, '#ff0' ) );
 	}
 
+	die() {
+		// stop horizontal movement
+		this.direction = 0;
+ 		// start explosion animation
+		this.frameExplosion = 0;
+		this.isExploding = true;
+	}
+
 	draw( canvas, context ) {
+
+		if ( this.isDead )
+			return;
+
 		// update horizontal position
 		this.posX += this.speed * this.direction;
 		if ( this.posX > canvas.width )
@@ -96,16 +110,29 @@ class Player {
 		else if ( this.posX < 0 )
 			this.posX = 0;
 
-		if ( this.frame < 6 )
-			this.frame++;
-		else
-			this.frame = 0;
-		let i = this.frame / 2 | 0;
+		// increment frame of thruster animation (3 frames)
+		this.frameThruster = this.frameThruster < 3 ? this.frameThruster + .5 : 0;
 
-		// draw ship and thruster
-		context.drawImage( this.ship, 64 * this.direction + 64, 0, 64, 64, this.posX - 16, this.posY, 32, 32 );
-		context.drawImage( this.thruster, 64 * i, 0, 64, 64, this.posX - 16, this.posY + 32, 32, 32 );
+		let x = this.posX - 16;
 
+		// draw ship and thruster, except on the last 2 frames of the explosion
+		if ( ! this.isExploding || this.frameExplosion < 3 ) {
+			context.drawImage( this.ship, 64 * this.direction + 64, 0, 64, 64, x, this.posY, 32, 32 );
+			context.drawImage( this.thruster, 64 * ( this.frameThruster | 0 ), 0, 64, 64, x, this.posY + 32, 32, 32 );
+		}
+
+		// draw explosion
+		if ( this.isExploding ) {
+			this.frameExplosion += .25; // ~15 fps
+			if ( this.frameExplosion < 5 )
+				context.drawImage( this.explosion, 64 * ( this.frameExplosion | 0 ), 0, 64, 64, x, this.posY, 32, 32 );
+			else {
+				this.isExploding = false;
+				this.isDead = true;
+			}
+		}
+
+		// draw hitbox
 		if ( showHitBox ) {
 			let rect = this.hitbox;
 			context.lineWidth = 1;
@@ -132,8 +159,11 @@ class Player {
 		this.posX = posX; // horizontal center of image
 		this.posY = posY; // top of image
 		this.shots = [];
-		this.frame = 0;
 		this.direction = 0;
+		this.frameThruster = 0;
+		this.frameExplosion = 0;
+		this.isExploding = false;
+		this.isDead = false;
 	}
 }
 
@@ -197,25 +227,37 @@ function displayScoreboard() {
 
 function displayTitle() {
 
+	if ( ! attractMode && ! player.isDead )
+		return;
+
 	let posX = canvas.width / 2;
 	let posY = canvas.height * .4;
 
 	background.fillStyle = '#999';
 	background.font = 'bold 180px "Russo One",sans-serif';
 	background.textAlign = 'center';
-	background.fillText( 'Space Game', posX, posY  );
 
-	background.fillStyle = '#fff';
-	background.font = 'bold 200px "Russo One",sans-serif';
-	background.fillText( '101', posX, posY + 130 );
-	background.strokeStyle = '#000';
-	background.lineWidth = 6;
-	background.strokeText( '101', posX, posY + 130 );
-
-	// 'insert coin' blinks on every other second
-	if ( ( time / 1000 | 0 ) % 2 ) {
+	if ( player.isDead ) {
+		background.fillText( 'GAME OVER', posX, posY );
+		background.fillStyle = '#fff';
 		background.font = '18px "Russo One",sans-serif';
-		background.fillText( 'PRESS ANY KEY TO START', posX, canvas.height * .7 );
+		background.fillText( 'PRESS SPACE TO RESTART', posX, canvas.height * .7 );
+	}
+	else {
+		background.fillText( 'Space Game', posX, posY );
+
+		background.fillStyle = '#fff';
+		background.font = 'bold 200px "Russo One",sans-serif';
+		background.fillText( '101', posX, posY + 130 );
+		background.strokeStyle = '#000';
+		background.lineWidth = 6;
+		background.strokeText( '101', posX, posY + 130 );
+
+		// 'press any key' blinks on every other second
+		if ( ( time / 1000 | 0 ) % 2 ) {
+			background.font = '18px "Russo One",sans-serif';
+			background.fillText( 'PRESS ANY KEY TO START', posX, canvas.height * .7 );
+		}
 	}
 }
 
@@ -234,7 +276,17 @@ function readPlayerInput( event ) {
 	/* TODO:
 	   - add touch support
 	*/
-	// reset player and exit attract mode on keypress
+
+	// during "game over" screen any keypress enters attract mode
+	if ( player.isDead ) {
+		if ( event.code == 'Space' && event.type == 'keyup' ) {
+			player.reset( canvas.width / 2, canvas.height * .75 );
+			attractMode = true;
+		}
+		return;
+	}
+
+	// during attract mode any keypress starts the game
 	if ( attractMode && event.type == 'keyup' ) {
 		resetGame();
 		return;
@@ -244,17 +296,13 @@ function readPlayerInput( event ) {
 	if ( event.code == 'ArrowLeft' || event.code == 'ArrowRight' )
 		player.direction = ( event.type == 'keydown' && ( event.code == 'ArrowLeft' ) * -1 + ( event.code == 'ArrowRight' ) ) | 0;
 
-	// fire
+	// fire on space bar released
 	if ( event.code == 'Space' && event.type == 'keyup' )
 		player.addShot();
 }
 
 function updatePlayer() {
-	/* TODO:
-	   - add explosions!
-	*/
-
-	// emulate player controls while in attract mode
+	// emulate player controls during attract mode
 	if ( attractMode ) {
 		if ( Math.random() > .9 )
 			player.direction = ( Math.random() * 3 | 0 ) - 1;
@@ -268,7 +316,7 @@ function updatePlayer() {
 
 	// draw player bullets
 
-	// we use a filter function to remove "used" bullets from the array
+	// the bullets array is processed by a filter function to remove "used" bullets
 	player.shots = player.shots.filter( shot => {
 		// check if bullet has hit the enemy
 		if ( ! attractMode && intersect( shot.hitbox, enemy.hitbox ) ) {
@@ -283,7 +331,6 @@ function updatePlayer() {
 function updateEnemy() {
 	/* TODO:
 	   - improve enemy movement logic
-	   - improve player death
 	*/
 	let rangeX = canvas.width / 2;
 	let rangeY = 50;
@@ -298,24 +345,21 @@ function updateEnemy() {
 	enemy.draw( background );
 
 	// add a new shot randomly
-	if ( Math.random() > .96 )
+	if ( Math.random() > .96 && ! player.isDead )
 		enemy.addShot();
 
 	// draw enemy bullets
 
-	// we use a filter function to remove "used" bullets from the array
+	// the bullets array is processed by a filter function to remove "used" bullets
 	enemy.shots = enemy.shots.filter( shot => {
 		// check if bullet has hit the player's ship
 		if ( ! attractMode && intersect( shot.hitbox, player.hitbox ) ) {
-			alert('GAME OVER!');
-			player.reset( canvas.width / 2, canvas.height * .75 );
-			attractMode = true;
+			player.die(); // trigger player death
 			return false; // remove this bullet
 		}
- 		// bullets that went off-screen return `false`
+ 		// bullets that went off-screen return `false` and are removed
 		return shot.draw( canvas, background );
 	});
-
 }
 
 function gameLoop() {
@@ -323,10 +367,8 @@ function gameLoop() {
 	time = performance.now();
 
 	animateBackground();
-	if ( attractMode )
-		displayTitle();
-	else
-		displayScoreboard();
+	displayTitle();
+	displayScoreboard();
 	updatePlayer();
 	updateEnemy();
 
