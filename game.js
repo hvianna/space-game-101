@@ -41,7 +41,7 @@ class Starfield {
 	}
 }
 
-class Shot {
+class Bullet {
 	constructor( posX, posY, width, height, speed, color ) {
 		this.posX = ( posX - width / 2 ) | 0;
 		this.posY = posY - ( speed < 0 ? height : -height );
@@ -52,8 +52,8 @@ class Shot {
 	}
 
 	/**
-	 * Update shot position and draws it on canvas
-	 * Returns false if shot went off-screen
+	 * Update bullet position and draws it on canvas
+	 * Returns false if bullet went off-screen
 	 */
 	draw( canvas, context ) {
 		this.posY += this.speed;
@@ -83,11 +83,6 @@ class Player {
 		this.maxBullets = 3; // maximum number of concurrent bullets on screen
 		this.speed = 2; // horizontal speed (pixels per frame)
 		this.reset( posX, posY );
-	}
-
-	addShot() {
-		if ( ! this.isExploding && ! this.isDead && this.shots.length < this.maxBullets )
-			this.shots.push( new Shot( this.posX, this.posY, 4, 20, -4, '#ff0' ) );
 	}
 
 	die() {
@@ -158,12 +153,21 @@ class Player {
 	reset( posX, posY ) {
 		this.posX = posX; // horizontal center of image
 		this.posY = posY; // top of image
-		this.shots = [];
+		this.bullets = [];
 		this.direction = 0;
 		this.frameThruster = 0;
 		this.frameExplosion = 0;
 		this.isExploding = false;
 		this.isDead = false;
+	}
+
+	shoot() {
+		// ignore if player is dead or exploding
+		if ( this.isExploding || this.isDead )
+			return;
+
+		if ( this.bullets.length < this.maxBullets )
+			this.bullets.push( new Bullet( this.posX, this.posY, 4, 20, -4, '#ff0' ) );
 	}
 }
 
@@ -173,13 +177,8 @@ class Enemy {
 		this.posY = posY; // bottom of image
 		this.img = new Image();
 		this.img.src = 'assets/mother-ship.png';
-		this.shots = [];
+		this.bullets = [];
 		this.maxBullets = 10;
-	}
-
-	addShot() {
-		if ( this.shots.length < this.maxBullets )
-			this.shots.push( new Shot( this.posX, this.posY, 6, 12, 2, '#f00' ) );
 	}
 
 	draw( context ) {
@@ -205,6 +204,11 @@ class Enemy {
 	move( x, y ) {
 		this.posX = x;
 		this.posY = y;
+	}
+
+	shoot() {
+		if ( this.bullets.length < this.maxBullets )
+			this.bullets.push( new Bullet( this.posX, this.posY, 6, 12, 2, '#f00' ) );
 	}
 }
 
@@ -298,7 +302,7 @@ function readPlayerInput( event ) {
 
 	// fire on space bar released
 	if ( event.code == 'Space' && event.type == 'keyup' )
-		player.addShot();
+		player.shoot();
 }
 
 function updatePlayer() {
@@ -309,7 +313,7 @@ function updatePlayer() {
 
 		// fire randomly
 		if ( Math.random() > .96 )
-			player.addShot();
+			player.shoot();
 	}
 
 	player.draw( canvas, background );
@@ -317,14 +321,14 @@ function updatePlayer() {
 	// draw player bullets
 
 	// the bullets array is processed by a filter function to remove "used" bullets
-	player.shots = player.shots.filter( shot => {
+	player.bullets = player.bullets.filter( bullet => {
 		// check if bullet has hit the enemy
-		if ( ! attractMode && intersect( shot.hitbox, enemy.hitbox ) ) {
+		if ( ! attractMode && intersect( bullet.hitbox, enemy.hitbox ) ) {
 			score += 10;
 			return false; // remove this bullet
 		}
  		// bullets that went off-screen return `false`
-		return shot.draw( canvas, background );
+		return bullet.draw( canvas, background );
 	});
 }
 
@@ -344,21 +348,21 @@ function updateEnemy() {
 	enemy.move( posX, posY );
 	enemy.draw( background );
 
-	// add a new shot randomly
+	// fire new bullet randomly
 	if ( Math.random() > .96 && ! player.isDead )
-		enemy.addShot();
+		enemy.shoot();
 
 	// draw enemy bullets
 
 	// the bullets array is processed by a filter function to remove "used" bullets
-	enemy.shots = enemy.shots.filter( shot => {
+	enemy.bullets = enemy.bullets.filter( bullet => {
 		// check if bullet has hit the player's ship
-		if ( ! attractMode && intersect( shot.hitbox, player.hitbox ) ) {
+		if ( ! attractMode && intersect( bullet.hitbox, player.hitbox ) ) {
 			player.die(); // trigger player death
 			return false; // remove this bullet
 		}
  		// bullets that went off-screen return `false` and are removed
-		return shot.draw( canvas, background );
+		return bullet.draw( canvas, background );
 	});
 }
 
