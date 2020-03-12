@@ -74,7 +74,9 @@ class Bullet {
 }
 
 class Player {
-	constructor( posX, posY ) {
+	constructor( canvas ) {
+		this.canvas = canvas;
+		this.ctx = this.canvas.getContext('2d');
 		this.ship = new Image();
 		this.ship.src = 'assets/player-sprites.png';
 		this.thruster = new Image();
@@ -83,7 +85,7 @@ class Player {
 		this.explosion.src = 'assets/explosion-sprites.png';
 		this.maxBullets = 3; // maximum number of concurrent bullets on screen
 		this.speed = 4; // horizontal speed (pixels per frame)
-		this.reset( posX, posY );
+		this.reset();
 	}
 
 	die() {
@@ -92,15 +94,15 @@ class Player {
 		this.isExploding = true;
 	}
 
-	draw( canvas, context ) {
+	draw() {
 
 		if ( this.isDead )
 			return;
 
 		// update horizontal position
 		this.posX += this.speed * this.direction;
-		if ( this.posX > canvas.width )
-			this.posX = canvas.width;
+		if ( this.posX > this.canvas.width )
+			this.posX = this.canvas.width;
 		else if ( this.posX < 0 )
 			this.posX = 0;
 
@@ -111,15 +113,15 @@ class Player {
 
 		// draw ship and thruster, except on the last 2 frames of the explosion
 		if ( ! this.isExploding || this.frameExplosion < 3 ) {
-			context.drawImage( this.ship, 64 * this.direction + 64, 0, 64, 64, x, this.posY, 32, 32 );
-			context.drawImage( this.thruster, 64 * ( this.frameThruster | 0 ), 0, 64, 64, x, this.posY + 32, 32, 32 );
+			this.ctx.drawImage( this.ship, 64 * this.direction + 64, 0, 64, 64, x, this.posY, 32, 32 );
+			this.ctx.drawImage( this.thruster, 64 * ( this.frameThruster | 0 ), 0, 64, 64, x, this.posY + 32, 32, 32 );
 		}
 
 		// draw explosion
 		if ( this.isExploding ) {
 			this.frameExplosion += .25; // ~15 fps
 			if ( this.frameExplosion < 5 )
-				context.drawImage( this.explosion, 64 * ( this.frameExplosion | 0 ), 0, 64, 64, x, this.posY, 32, 32 );
+				this.ctx.drawImage( this.explosion, 64 * ( this.frameExplosion | 0 ), 0, 64, 64, x, this.posY, 32, 32 );
 			else {
 				this.isExploding = false;
 				this.isDead = true;
@@ -129,9 +131,9 @@ class Player {
 		// draw hitbox
 		if ( showHitBox ) {
 			let rect = this.hitbox;
-			context.lineWidth = 1;
-			context.strokeStyle = '#8f8';
-			context.strokeRect( rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top );
+			this.ctx.lineWidth = 1;
+			this.ctx.strokeStyle = '#8f8';
+			this.ctx.strokeRect( rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top );
 		}
 	}
 
@@ -144,20 +146,20 @@ class Player {
 		}
 	}
 
-	move( x, y ) {
-		this.posX = x;
-		this.posY = y;
+	moveTo( x, y ) {
+		this.posX = x; // horizontal center of image
+		this.posY = y; // top of image
+		return this;
 	}
 
-	reset( posX, posY ) {
-		this.posX = posX; // horizontal center of image
-		this.posY = posY; // top of image
+	reset() {
 		this.bullets = [];
 		this.direction = 0;
 		this.frameThruster = 0;
 		this.frameExplosion = 0;
 		this.isExploding = false;
 		this.isDead = false;
+		return this;
 	}
 
 	shoot() {
@@ -283,7 +285,7 @@ function readPlayerInput( event ) {
 	// during "game over" screen any keypress enters attract mode
 	if ( player.isDead ) {
 		if ( event.code == 'Space' && event.type == 'keyup' ) {
-			player.reset( canvas.width / 2, canvas.height * .75 );
+			player.reset().moveTo( canvas.width / 2, canvas.height * .75 );
 			attractMode = true;
 		}
 		return;
@@ -315,7 +317,7 @@ function updatePlayer() {
 			player.shoot();
 	}
 
-	player.draw( canvas, background );
+	player.draw();
 
 	// draw player bullets
 
@@ -381,7 +383,7 @@ function gameLoop() {
 
 function resetGame() {
 	score = 0;
-	player.reset( canvas.width / 2, canvas.height * .75 );
+	player.reset().moveTo( canvas.width / 2, canvas.height * .75 );
 	attractMode = false;
 }
 
@@ -403,7 +405,7 @@ const parallax = [
 	new Starfield( canvas, { stars: 300, speed: .05, maxSize: 2 } ),
 ];
 
-const player = new Player( canvas.width / 2, canvas.height * .75 );
+const player = new Player( canvas ).moveTo( canvas.width / 2, canvas.height * .75 );
 const enemy  = new Enemy( canvas.width / 2, canvas.height * .2 );
 
 let time;
