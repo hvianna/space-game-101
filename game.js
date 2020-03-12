@@ -81,7 +81,7 @@ class Player {
 		this.explosion = new Image();
 		this.explosion.src = 'assets/explosion-sprites.png';
 		this.maxBullets = 3; // maximum number of concurrent bullets on screen
-		this.speed = 2; // horizontal speed (pixels per frame)
+		this.speed = 4; // horizontal speed (pixels per frame)
 		this.reset( posX, posY );
 	}
 
@@ -165,7 +165,7 @@ class Player {
 			return;
 
 		if ( this.bullets.length < this.maxBullets )
-			this.bullets.push( new Bullet( this.posX, this.posY, 4, 20, -4, '#ff0' ) );
+			this.bullets.push( new Bullet( this.posX, this.posY, 4, 20, -8, '#ff0' ) );
 	}
 }
 
@@ -206,7 +206,7 @@ class Enemy {
 
 	shoot() {
 		if ( this.bullets.length < this.maxBullets )
-			this.bullets.push( new Bullet( this.posX, this.posY, 6, 12, 2, '#f00' ) );
+			this.bullets.push( new Bullet( this.posX, this.posY, 6, 12, 4, '#f00' ) );
 	}
 }
 
