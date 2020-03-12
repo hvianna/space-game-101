@@ -1,11 +1,12 @@
 
 class Starfield {
-	constructor( width, height, options = {} ) {
+	constructor( originCanvas, options = {} ) {
 		// set object properties
-		this.width  = width;
-		this.height = height;
+		this.origin = originCanvas.getContext('2d');
+		this.width  = originCanvas.width;
+		this.height = originCanvas.height;
 		this.speed  = options.speed || .1; // scroll speed in pixels per frame
-		this.posY   = height;
+		this.posY   = this.height;
 
 		// create the canvas
 		this.canvas = document.createElement('canvas');
@@ -30,14 +31,14 @@ class Starfield {
 		this.ctx.drawImage( this.canvas, 0, 0, this.width, this.height, 0, this.height, this.width, this.height );
 	}
 
-	scroll( context ) {
+	scroll() {
 		// decrement the current Y coordinate and wrap around if necessary
 		this.posY -= this.speed;
 		if ( this.posY < 0 )
 			this.posY = this.height;
 
 		// draw the starfield over the background canvas
-		context.drawImage( this.canvas, 0, this.posY, canvas.width, canvas.height, 0, 0, canvas.width, canvas.height );
+		this.origin.drawImage( this.canvas, 0, this.posY, this.width, this.height, 0, 0, this.width, this.height );
 	}
 }
 
@@ -217,7 +218,7 @@ function animateBackground() {
 	background.fillRect( 0, 0, canvas.width, canvas.height );
 
 	// animate parallax layers
-	parallax.forEach( layer => layer.scroll( background ) );
+	parallax.forEach( layer => layer.scroll() );
 }
 
 function displayScoreboard() {
@@ -397,9 +398,9 @@ canvas.width  = 1280;
 canvas.height = 800;
 
 const parallax = [
-	new Starfield( canvas.width, canvas.height, { stars: 80, speed: .6, maxSize: 4 } ),
-	new Starfield( canvas.width, canvas.height, { speed: .2 } ),
-	new Starfield( canvas.width, canvas.height, { stars: 300, speed: .05, maxSize: 2 } ),
+	new Starfield( canvas, { stars: 80, speed: .6, maxSize: 4 } ),
+	new Starfield( canvas, { speed: .2 } ),
+	new Starfield( canvas, { stars: 300, speed: .05, maxSize: 2 } ),
 ];
 
 const player = new Player( canvas.width / 2, canvas.height * .75 );
