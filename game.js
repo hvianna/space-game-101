@@ -1,11 +1,22 @@
 
 class Starfield {
-	constructor( originCanvas, options = {} ) {
+	constructor( originCanvas, options ) {
+		// default option values
+		const defaults = {
+			speed  : .4,
+			stars  : 200,
+			maxSize: 3
+		};
+
+		// merge `options` argument with default values and
+		// destructure the resulting object into local constants
+		const { speed, stars, maxSize } = Object.assign( defaults, options );
+
 		// set object properties
 		this.origin = originCanvas.getContext('2d');
 		this.width  = originCanvas.width;
 		this.height = originCanvas.height;
-		this.speed  = options.speed || .1; // scroll speed in pixels per frame
+		this.speed  = speed; // scroll speed in pixels per frame
 		this.posY   = this.height;
 
 		// create the canvas
@@ -15,10 +26,6 @@ class Starfield {
 		this.canvas.height = this.height * 2; // canvas height is doubled for seamless scrolling
 
 		// generate a random starfield
-
-		let stars   = options.stars || 200;
-		let maxSize = options.maxSize || 3;
-
 		this.ctx.fillStyle = '#fff';
 		for ( let i = 0; i < stars; i++ ) {
 			let x = Math.random() * this.width | 0;
@@ -400,9 +407,9 @@ canvas.width  = 1280;
 canvas.height = 800;
 
 const parallax = [
-	new Starfield( canvas, { stars: 80, speed: .6, maxSize: 4 } ),
-	new Starfield( canvas, { speed: .2 } ),
-	new Starfield( canvas, { stars: 300, speed: .05, maxSize: 2 } ),
+	new Starfield( canvas, { stars: 80, speed: 1, maxSize: 4 } ),
+	new Starfield( canvas ),
+	new Starfield( canvas, { stars: 300, speed: .1, maxSize: 2 } ),
 ];
 
 const player = new Player( canvas ).moveTo( canvas.width / 2, canvas.height * .75 );
