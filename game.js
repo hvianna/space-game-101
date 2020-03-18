@@ -50,9 +50,22 @@ class Starfield {
 }
 
 class Bullet {
-	constructor( posX, posY, width, height, speed, color ) {
+	constructor( canvas, posX, posY, options ) {
+		// default option values
+		const defaults = {
+			width : 6,
+			height: 12,
+			speed : 4,
+			color : 'red'
+		};
+
+		// merge options with defaults and destructure object into local constants
+		const { width, height, speed, color } = Object.assign( defaults, options );
+
+		this.canvas = canvas;
+		this.ctx = this.canvas.getContext('2d');
 		this.posX = ( posX - width / 2 ) | 0;
-		this.posY = posY - ( speed < 0 ? height : -height );
+		this.posY = posY;
 		this.width = width;
 		this.height = height;
 		this.speed = speed;
@@ -63,11 +76,11 @@ class Bullet {
 	 * Update bullet position and draws it on canvas
 	 * Returns false if bullet went off-screen
 	 */
-	draw( canvas, context ) {
+	draw() {
 		this.posY += this.speed;
-		context.fillStyle = this.color;
-		context.fillRect( this.posX, this.posY, this.width, this.height );
-		return this.posY >= -this.height && this.posY <= canvas.height;
+		this.ctx.fillStyle = this.color;
+		this.ctx.fillRect( this.posX, this.posY, this.width, this.height );
+		return this.posY >= -this.height && this.posY <= this.canvas.height;
 	}
 
 	get hitbox() {
@@ -156,7 +169,7 @@ class Player {
 	moveTo( x, y ) {
 		this.posX = x; // horizontal center of image
 		this.posY = y; // top of image
-		return this;
+		return this;   // return own object, so methods can be chained
 	}
 
 	reset() {
@@ -174,13 +187,23 @@ class Player {
 		if ( this.isExploding || this.isDead )
 			return;
 
-		if ( this.bullets.length < this.maxBullets )
-			this.bullets.push( new Bullet( this.posX, this.posY, 4, 20, -8, '#ff0' ) );
+		if ( this.bullets.length < this.maxBullets ) {
+			const bullet = new Bullet( this.canvas, this.posX, this.posY, {
+				width : 4,
+				height: 20,
+				speed : -8,
+				color : 'gold'
+			});
+
+			this.bullets.push( bullet );
+		}
 	}
 }
 
 class Enemy {
-	constructor( posX, posY ) {
+	constructor( canvas, posX, posY ) {
+		this.canvas = canvas;
+		this.ctx = this.canvas.getContext('2d');
 		this.posX = posX; // horizontal center of image
 		this.posY = posY; // bottom of image
 		this.img = new Image();
@@ -189,14 +212,14 @@ class Enemy {
 		this.maxBullets = 10;
 	}
 
-	draw( context ) {
-		context.drawImage( this.img, 0, 0, 144, 64, this.posX - 72, this.posY - 64, 144, 64 );
+	draw() {
+		this.ctx.drawImage( this.img, 0, 0, 144, 64, this.posX - 72, this.posY - 64, 144, 64 );
 
 		if ( showHitBox ) {
 			let rect = this.hitbox;
-			context.lineWidth = 1;
-			context.strokeStyle = '#8f8';
-			context.strokeRect( rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top );
+			this.ctx.lineWidth = 1;
+			this.ctx.strokeStyle = '#8f8';
+			this.ctx.strokeRect( rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top );
 		}
 	}
 
@@ -209,17 +232,21 @@ class Enemy {
 		}
 	}
 
-	move( x, y ) {
+	moveTo( x, y ) {
 		this.posX = x;
 		this.posY = y;
+		return this;
 	}
 
 	shoot() {
 		if ( this.bullets.length < this.maxBullets )
-			this.bullets.push( new Bullet( this.posX, this.posY, 6, 12, 4, '#f00' ) );
+			this.bullets.push( new Bullet( this.canvas, this.posX, this.posY ) );
 	}
 }
 
+/**
+ * Gameplay functions
+ */
 
 function animateBackground() {
 	// clear main canvas
@@ -336,7 +363,7 @@ function updatePlayer() {
 			return false; // remove this bullet
 		}
  		// bullets that went off-screen return `false`
-		return bullet.draw( canvas, background );
+		return bullet.draw();
 	});
 }
 
@@ -353,8 +380,7 @@ function updateEnemy() {
 	let posY = canvas.height * .3 + Math.sin( angle*2 ) * rangeY;
 
 	// update enemy's position and display it
-	enemy.move( posX, posY );
-	enemy.draw( background );
+	enemy.moveTo( posX, posY ).draw();
 
 	// fire new bullet randomly
 	if ( Math.random() > .96 && ! player.isDead )
@@ -370,7 +396,7 @@ function updateEnemy() {
 			return false; // remove this bullet
 		}
  		// bullets that went off-screen return `false` and are removed
-		return bullet.draw( canvas, background );
+		return bullet.draw();
 	});
 }
 
@@ -413,7 +439,7 @@ const parallax = [
 ];
 
 const player = new Player( canvas ).moveTo( canvas.width / 2, canvas.height * .75 );
-const enemy  = new Enemy( canvas.width / 2, canvas.height * .2 );
+const enemy  = new Enemy( canvas ).moveTo( canvas.width / 2, canvas.height * .2 );
 
 let time;
 
