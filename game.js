@@ -93,10 +93,45 @@ class Bullet {
 	}
 }
 
-class Player {
+class Ship {
 	constructor( canvas ) {
 		this.canvas = canvas;
 		this.ctx = this.canvas.getContext('2d');
+	}
+
+	moveTo( x, y ) {
+		this.posX = x; // horizontal center of image
+		this.posY = y; // top of image
+		return this;   // return own object, so methods can be chained
+	}
+
+	reset() {
+		this.bullets = [];
+		this.direction = 0;
+		this.frameThruster = 0;
+		this.frameExplosion = 0;
+		this.isExploding = false;
+		this.isDead = false;
+		return this;
+	}
+
+	updateBullets( hitbox, callback ) {
+		// the bullets array is processed by a filter function to remove "used" bullets
+		this.bullets = this.bullets.filter( bullet => {
+			// check if bullet intersects the hitbox (when provided)
+			if ( hitbox && intersect( bullet.hitbox, hitbox ) ) {
+				callback( bullet ); // call callback function with bullet information
+				return false; // remove this bullet from the array
+			}
+	 		// bullets that went off-screen return `false` and are removed
+			return bullet.draw();
+		});
+	}
+}
+
+class Player extends Ship {
+	constructor( canvas ) {
+		super( canvas );
 		this.ship = new Image();
 		this.ship.src = 'assets/player-sprites.png';
 		this.thruster = new Image();
@@ -115,7 +150,6 @@ class Player {
 	}
 
 	draw() {
-
 		if ( this.isDead )
 			return;
 
@@ -166,22 +200,6 @@ class Player {
 		}
 	}
 
-	moveTo( x, y ) {
-		this.posX = x; // horizontal center of image
-		this.posY = y; // top of image
-		return this;   // return own object, so methods can be chained
-	}
-
-	reset() {
-		this.bullets = [];
-		this.direction = 0;
-		this.frameThruster = 0;
-		this.frameExplosion = 0;
-		this.isExploding = false;
-		this.isDead = false;
-		return this;
-	}
-
 	shoot() {
 		// ignore if player is dead or exploding
 		if ( this.isExploding || this.isDead )
@@ -200,16 +218,13 @@ class Player {
 	}
 }
 
-class Enemy {
-	constructor( canvas, posX, posY ) {
-		this.canvas = canvas;
-		this.ctx = this.canvas.getContext('2d');
-		this.posX = posX; // horizontal center of image
-		this.posY = posY; // bottom of image
+class Enemy extends Ship {
+	constructor( canvas ) {
+		super( canvas );
 		this.img = new Image();
 		this.img.src = 'assets/mother-ship.png';
-		this.bullets = [];
 		this.maxBullets = 10;
+		this.reset();
 	}
 
 	draw() {
@@ -230,12 +245,6 @@ class Enemy {
 			right : this.posX + 56,
 			bottom: this.posY - 8
 		}
-	}
-
-	moveTo( x, y ) {
-		this.posX = x;
-		this.posY = y;
-		return this;
 	}
 
 	shoot() {
@@ -353,17 +362,9 @@ function updatePlayer() {
 
 	player.draw();
 
-	// draw player bullets
-
-	// the bullets array is processed by a filter function to remove "used" bullets
-	player.bullets = player.bullets.filter( bullet => {
-		// check if bullet has hit the enemy
-		if ( ! attractMode && intersect( bullet.hitbox, enemy.hitbox ) ) {
-			score += 10;
-			return false; // remove this bullet
-		}
- 		// bullets that went off-screen return `false`
-		return bullet.draw();
+	// update player bullets
+	player.updateBullets( attractMode ? null : enemy.hitbox, () => {
+		score += 10;
 	});
 }
 
@@ -386,18 +387,9 @@ function updateEnemy() {
 	if ( Math.random() > .96 && ! player.isDead )
 		enemy.shoot();
 
-	// draw enemy bullets
-
-	// the bullets array is processed by a filter function to remove "used" bullets
-	enemy.bullets = enemy.bullets.filter( bullet => {
-		// check if bullet has hit the player's ship
-		if ( ! attractMode && intersect( bullet.hitbox, player.hitbox ) ) {
-			player.die(); // trigger player death
-			return false; // remove this bullet
-		}
- 		// bullets that went off-screen return `false` and are removed
-		return bullet.draw();
-	});
+	// update enemy bullets
+	// check collisions with the player ship when not in attract mode
+	enemy.updateBullets( attractMode ? null : player.hitbox, () => player.die() );
 }
 
 function gameLoop() {
@@ -416,6 +408,7 @@ function gameLoop() {
 
 function resetGame() {
 	score = 0;
+	enemy.reset();
 	player.reset().moveTo( canvas.width / 2, canvas.height * .75 );
 	attractMode = false;
 }
