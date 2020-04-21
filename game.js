@@ -104,6 +104,16 @@ class Ship {
 	constructor( canvas ) {
 		this.canvas = canvas;
 		this.ctx = this.canvas.getContext('2d');
+		this.showHitBox = false;
+	}
+
+	draw() {
+		if ( ! this.showHitBox )
+			return;
+		let rect = this.hitbox;
+		this.ctx.lineWidth = 1;
+		this.ctx.strokeStyle = '#8f8';
+		this.ctx.strokeRect( rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top );
 	}
 
 	moveTo( x, y ) {
@@ -126,7 +136,7 @@ class Ship {
 		// the bullets array is processed by a filter function to remove "used" bullets
 		this.bullets = this.bullets.filter( bullet => {
 			// check if bullet intersects the hitbox (when provided)
-			if ( hitbox && intersect( bullet.hitbox, hitbox ) ) {
+			if ( hitbox && SpaceGame101.intersect( bullet.hitbox, hitbox ) ) {
 				callback( bullet ); // call callback function with bullet information
 				return false; // remove this bullet from the array
 			}
@@ -189,13 +199,8 @@ class Player extends Ship {
 			}
 		}
 
-		// draw hitbox
-		if ( showHitBox ) {
-			let rect = this.hitbox;
-			this.ctx.lineWidth = 1;
-			this.ctx.strokeStyle = '#8f8';
-			this.ctx.strokeRect( rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top );
-		}
+		// calls parent class' draw() method
+		super.draw();
 	}
 
 	get hitbox() {
@@ -236,13 +241,7 @@ class Enemy extends Ship {
 
 	draw() {
 		this.ctx.drawImage( this.img, 0, 0, 144, 64, this.posX - 72, this.posY - 64, 144, 64 );
-
-		if ( showHitBox ) {
-			let rect = this.hitbox;
-			this.ctx.lineWidth = 1;
-			this.ctx.strokeStyle = '#8f8';
-			this.ctx.strokeRect( rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top );
-		}
+		super.draw();
 	}
 
 	get hitbox() {
@@ -286,206 +285,231 @@ class ScoreHint {
 }
 
 /**
- * Gameplay functions
+ * Game class
  */
 
-function animateBackground() {
-	// clear main canvas
-	background.fillStyle = '#000';
-	background.fillRect( 0, 0, canvas.width, canvas.height );
+class SpaceGame101 {
 
-	// animate parallax layers
-	parallax.forEach( layer => layer.scroll() );
-}
+	constructor( container ) {
+		this.canvas    = document.createElement('canvas');
+		this.canvasCtx = this.canvas.getContext('2d');
+		this.container = container || document.body;
 
-function displayScoreboard() {
-	background.fillStyle = '#fff';
-	background.font = '24px "Russo One",sans-serif';
-	background.textAlign = 'right';
-	background.fillText( score, canvas.width * .95, 50 );
-}
+		this.canvas.width  = 1280;
+		this.canvas.height = 800;
 
-function displayTitle() {
+		this.player = new Player( this.canvas );
+		this.enemy  = new Enemy( this.canvas );
 
-	if ( ! attractMode && ! player.isDead )
-		return;
+		this.parallaxLayers = [
+			new Starfield( this.canvas, { stars: 80, speed: 1, maxSize: 4 } ),
+			new Starfield( this.canvas ),
+			new Starfield( this.canvas, { stars: 300, speed: .1, maxSize: 2 } ),
+		];
 
-	let posX = canvas.width / 2;
-	let posY = canvas.height * .4;
-
-	background.fillStyle = '#999';
-	background.font = 'bold 180px "Russo One",sans-serif';
-	background.textAlign = 'center';
-
-	if ( player.isDead ) {
-		background.fillText( 'GAME OVER', posX, posY );
-		background.fillStyle = '#fff';
-		background.font = '18px "Russo One",sans-serif';
-		background.fillText( 'PRESS SPACE TO RESTART', posX, canvas.height * .7 );
+		this.timestamp = 0;
+		this.score = 0;
+		this.scoredPoints = [];
+		this.runningId = null;
 	}
-	else {
-		background.fillText( 'Space Game', posX, posY );
 
-		background.font = 'bold 200px "Russo One",sans-serif';
-		background.strokeStyle = '#000';
-		background.lineWidth = 10;
-		background.strokeText( '101', posX, posY + 140 );
-		background.fillStyle = '#fff';
-		background.fillText( '101', posX, posY + 140 );
+	/**
+	 * Helper function to detect intersection between two rectangles
+	 * props to https://stackoverflow.com/a/2752369/2370385
+	 */
+	static intersect( a, b ) {
+		return ( a.left <= b.right  &&
+		         b.left <= a.right  &&
+		         a.top  <= b.bottom &&
+		         b.top  <= a.bottom    );
+	}
 
-		// 'press any key' blinks on every other second
-		if ( ( time / 1000 | 0 ) % 2 ) {
-			background.font = '18px "Russo One",sans-serif';
-			background.fillText( 'PRESS ANY KEY TO START', posX, canvas.height * .7 );
+	run() {
+		// if runningId is not null the game is already running
+		if ( this.runningId )
+			return;
+
+		// add game canvas to HTML DOM
+		this.container.append( this.canvas );
+
+		// initialize position of player an enemy ships
+		this.player.moveTo( this.canvas.width / 2, this.canvas.height * .75 );
+		this.enemy.moveTo( this.canvas.width / 2, this.canvas.height * .2 );
+
+		// listen for keyboard events
+		window.addEventListener( 'keydown', event => this.readPlayerInput( event ) );
+		window.addEventListener( 'keyup', event => this.readPlayerInput( event ) );
+
+		// set "attract" mode
+		this.attractMode = true;
+
+		// start game loop
+		this.runningId = window.requestAnimationFrame( timestamp => this.gameLoop( timestamp ) );
+	}
+
+	animateBackground() {
+		// clear main canvas
+		this.canvasCtx.fillStyle = '#000';
+		this.canvasCtx.fillRect( 0, 0, this.canvas.width, this.canvas.height );
+
+		// animate parallax layers
+		this.parallaxLayers.forEach( layer => layer.scroll() );
+	}
+
+	displayScoreboard() {
+		this.canvasCtx.fillStyle = '#fff';
+		this.canvasCtx.font = '24px "Russo One",sans-serif';
+		this.canvasCtx.textAlign = 'right';
+		this.canvasCtx.fillText( this.score, this.canvas.width * .95, 50 );
+	}
+
+	displayTitle() {
+
+		if ( ! this.attractMode && ! this.player.isDead )
+			return;
+
+		let posX = this.canvas.width / 2;
+		let posY = this.canvas.height * .4;
+
+		this.canvasCtx.fillStyle = '#999';
+		this.canvasCtx.font = 'bold 180px "Russo One",sans-serif';
+		this.canvasCtx.textAlign = 'center';
+
+		if ( this.player.isDead ) {
+			this.canvasCtx.fillText( 'GAME OVER', posX, posY );
+			this.canvasCtx.fillStyle = '#fff';
+			this.canvasCtx.font = '18px "Russo One",sans-serif';
+			this.canvasCtx.fillText( 'PRESS SPACE TO RESTART', posX, this.canvas.height * .7 );
+		}
+		else {
+			this.canvasCtx.fillText( 'Space Game', posX, posY );
+
+			this.canvasCtx.font = 'bold 200px "Russo One",sans-serif';
+			this.canvasCtx.strokeStyle = '#000';
+			this.canvasCtx.lineWidth = 10;
+			this.canvasCtx.strokeText( '101', posX, posY + 140 );
+			this.canvasCtx.fillStyle = '#fff';
+			this.canvasCtx.fillText( '101', posX, posY + 140 );
+
+			// 'press any key' blinks on every other second
+			if ( ( this.timestamp / 1000 | 0 ) % 2 ) {
+				this.canvasCtx.font = '18px "Russo One",sans-serif';
+				this.canvasCtx.fillText( 'PRESS ANY KEY TO START', posX, this.canvas.height * .7 );
+			}
 		}
 	}
+
+	gameLoop( timestamp ) {
+		this.timestamp = timestamp;
+
+		this.animateBackground();
+		this.displayTitle();
+		this.displayScoreboard();
+		this.updatePlayer();
+		this.updateEnemy();
+
+		// schedule next animation frame
+		this.runningId = window.requestAnimationFrame( timestamp => this.gameLoop( timestamp ) );
+	}
+
+	readPlayerInput( event ) {
+		/* TODO:
+		   - add touch support
+		*/
+
+		// during "game over" screen any keypress enters attract mode
+		if ( this.player.isDead ) {
+			if ( event.code == 'Space' && event.type == 'keyup' ) {
+				this.player.reset().moveTo( this.canvas.width / 2, this.canvas.height * .75 );
+				this.attractMode = true;
+			}
+			return;
+		}
+
+		// during attract mode any keypress starts the game
+		if ( this.attractMode && event.type == 'keyup' ) {
+			this.resetGame();
+			return;
+		}
+
+		// set direction on key pressed; stop movement on key released
+		if ( event.code == 'ArrowLeft' || event.code == 'ArrowRight' )
+			this.player.direction = ( event.type == 'keydown' && ( event.code == 'ArrowLeft' ) * -1 + ( event.code == 'ArrowRight' ) ) | 0;
+
+		// fire on space bar released
+		if ( event.code == 'Space' && event.type == 'keyup' )
+			this.player.shoot();
+	}
+
+	resetGame() {
+		this.score = 0;
+		this.enemy.reset();
+		this.player.reset().moveTo( this.canvas.width / 2, this.canvas.height * .75 );
+		this.attractMode = false;
+	}
+
+	updateEnemy() {
+		/* TODO:
+		   - improve enemy movement logic
+		*/
+		let rangeX = this.canvas.width / 2;
+		let rangeY = 50;
+
+		// use the timestamp and some trigonometry to create a cyclic ∞-shaped movement path
+		let angle = this.timestamp / 1000 % ( Math.PI * 2 );
+		let posX = rangeX + Math.cos( angle ) * rangeX;
+		let posY = this.canvas.height * .3 + Math.sin( angle*2 ) * rangeY;
+
+		// update enemy's position and display it
+		this.enemy.moveTo( posX, posY ).draw();
+
+		// fire new bullet randomly
+		if ( Math.random() > .96 && ! this.player.isDead )
+			this.enemy.shoot();
+
+		// update enemy bullets
+		// check collisions with the player ship when not in attract mode
+		this.enemy.updateBullets( this.attractMode ? null : this.player.hitbox, () => this.player.die() );
+	}
+
+	updatePlayer() {
+		// emulate player controls during attract mode
+		if ( this.attractMode ) {
+			if ( Math.random() > .9 )
+				this.player.direction = ( Math.random() * 3 | 0 ) - 1;
+
+			// fire randomly
+			if ( Math.random() > .96 )
+				this.player.shoot();
+		}
+
+		this.player.draw();
+
+		// update player bullets
+		this.player.updateBullets( this.attractMode ? null : this.enemy.hitbox, ( bullet ) => {
+			this.score += 10;
+			this.scoredPoints.push( new ScoreHint( this.canvas, bullet, 10 ) );
+		});
+
+		// update visual score hints
+		this.scoredPoints = this.scoredPoints.filter( item => item.update() );
+	}
+
 }
 
 /**
- * Detect intersection between two rectangles
- * props to https://stackoverflow.com/a/2752369/2370385
- */
-function intersect( a, b ) {
-	return ( a.left <= b.right  &&
-	         b.left <= a.right  &&
-	         a.top  <= b.bottom &&
-	         b.top  <= a.bottom    );
-}
-
-function readPlayerInput( event ) {
-	/* TODO:
-	   - add touch support
-	*/
-
-	// during "game over" screen any keypress enters attract mode
-	if ( player.isDead ) {
-		if ( event.code == 'Space' && event.type == 'keyup' ) {
-			player.reset().moveTo( canvas.width / 2, canvas.height * .75 );
-			attractMode = true;
-		}
-		return;
-	}
-
-	// during attract mode any keypress starts the game
-	if ( attractMode && event.type == 'keyup' ) {
-		resetGame();
-		return;
-	}
-
-	// set direction on key pressed; stop movement on key released
-	if ( event.code == 'ArrowLeft' || event.code == 'ArrowRight' )
-		player.direction = ( event.type == 'keydown' && ( event.code == 'ArrowLeft' ) * -1 + ( event.code == 'ArrowRight' ) ) | 0;
-
-	// fire on space bar released
-	if ( event.code == 'Space' && event.type == 'keyup' )
-		player.shoot();
-}
-
-function updatePlayer() {
-	// emulate player controls during attract mode
-	if ( attractMode ) {
-		if ( Math.random() > .9 )
-			player.direction = ( Math.random() * 3 | 0 ) - 1;
-
-		// fire randomly
-		if ( Math.random() > .96 )
-			player.shoot();
-	}
-
-	player.draw();
-
-	// update player bullets
-	player.updateBullets( attractMode ? null : enemy.hitbox, ( bullet ) => {
-		score += 10;
-		scoredPoints.push( new ScoreHint( canvas, bullet, 10 ) );
-	});
-
-	// update visual score hints
-	scoredPoints = scoredPoints.filter( item => item.update() );
-}
-
-function updateEnemy() {
-	/* TODO:
-	   - improve enemy movement logic
-	*/
-	let rangeX = canvas.width / 2;
-	let rangeY = 50;
-
-	// use the timestamp and some trigonometry to create a cyclic ∞-shaped movement path
-	let angle = time / 1000 % ( Math.PI * 2 );
-	let posX = rangeX + Math.cos( angle ) * rangeX;
-	let posY = canvas.height * .3 + Math.sin( angle*2 ) * rangeY;
-
-	// update enemy's position and display it
-	enemy.moveTo( posX, posY ).draw();
-
-	// fire new bullet randomly
-	if ( Math.random() > .96 && ! player.isDead )
-		enemy.shoot();
-
-	// update enemy bullets
-	// check collisions with the player ship when not in attract mode
-	enemy.updateBullets( attractMode ? null : player.hitbox, () => player.die() );
-}
-
-function gameLoop() {
-	// get current timestamp
-	time = performance.now();
-
-	animateBackground();
-	displayTitle();
-	displayScoreboard();
-	updatePlayer();
-	updateEnemy();
-
-	// schedule next animation frame
-	window.requestAnimationFrame( gameLoop );
-}
-
-function resetGame() {
-	score = 0;
-	enemy.reset();
-	player.reset().moveTo( canvas.width / 2, canvas.height * .75 );
-	attractMode = false;
-}
-
-/**
- * Initialization
+ * main
  */
 
-// globals
+// create game instance
+const game = new SpaceGame101( document.getElementById('game') );
 
-const canvas     = document.getElementById('canvas');
-const background = canvas.getContext('2d');
+// customize some properties
 
-canvas.width  = 1280;
-canvas.height = 800;
+//game.player.showHitBox = true;
+//game.enemy.showHitBox = true;
 
-const parallax = [
-	new Starfield( canvas, { stars: 80, speed: 1, maxSize: 4 } ),
-	new Starfield( canvas ),
-	new Starfield( canvas, { stars: 300, speed: .1, maxSize: 2 } ),
-];
+game.player.maxBullets = 7; // default is 3
 
-const player = new Player( canvas ).moveTo( canvas.width / 2, canvas.height * .75 );
-const enemy  = new Enemy( canvas ).moveTo( canvas.width / 2, canvas.height * .2 );
-
-let time;
-
-let score = 0;
-let scoredPoints = [];
-
-let showHitBox = false; // set to `true` to visualize the hitboxes used for collision detection
-
-// listen for keyboard events
-
-window.addEventListener( 'keydown', readPlayerInput );
-window.addEventListener( 'keyup', readPlayerInput );
-
-// set "attract" mode
-
-let attractMode = true;
-
-// start game loop
-
-window.requestAnimationFrame( gameLoop );
+// start game
+game.run();
