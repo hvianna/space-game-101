@@ -1,3 +1,10 @@
+/**
+ * Space Game 101
+ * a bare-bones arcade game written in vanilla JavaScript (ES6+) for learning purposes
+ *
+ * https://github.com/hvianna/space-game-101
+ * (c) 2020 Henrique Vianna / MIT Licensed
+ */
 
 class Starfield {
 	constructor( originCanvas, options ) {
