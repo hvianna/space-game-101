@@ -253,6 +253,31 @@ class Enemy extends Ship {
 	}
 }
 
+class ScoreHint {
+	constructor( canvas, bullet, value ) {
+		this.canvas = canvas;
+		this.ctx = this.canvas.getContext('2d');
+		this.posX = bullet.posX;
+		this.posY = bullet.posY;
+		this.color = bullet.color;
+		this.value = value;
+		this.ttl = 60; // time to live (frames)
+	}
+
+	update() {
+		const alpha = this.ttl / 60;
+		this.ctx.save();
+		this.ctx.font = '20px "Russo One",sans-serif';
+		this.ctx.fillStyle = this.color;
+		this.ctx.globalAlpha = alpha;
+		this.ctx.fillText( this.value, this.posX, this.posY );
+		this.ctx.restore();
+		this.posY -= 4 * alpha; // progressively decrease vertical speed
+		this.ttl--;
+		return ( this.ttl > 0 );
+	}
+}
+
 /**
  * Gameplay functions
  */
@@ -363,9 +388,13 @@ function updatePlayer() {
 	player.draw();
 
 	// update player bullets
-	player.updateBullets( attractMode ? null : enemy.hitbox, () => {
+	player.updateBullets( attractMode ? null : enemy.hitbox, ( bullet ) => {
 		score += 10;
+		scoredPoints.push( new ScoreHint( canvas, bullet, 10 ) );
 	});
+
+	// update visual score hints
+	scoredPoints = scoredPoints.filter( item => item.update() );
 }
 
 function updateEnemy() {
@@ -437,6 +466,7 @@ const enemy  = new Enemy( canvas ).moveTo( canvas.width / 2, canvas.height * .2 
 let time;
 
 let score = 0;
+let scoredPoints = [];
 
 let showHitBox = false; // set to `true` to visualize the hitboxes used for collision detection
 
