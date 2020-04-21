@@ -10,5 +10,5 @@ Hopefully I'll add a write-up or tutorial here at some point.
 
 ## Milestones
 
-- [v0.2](https://github.com/hvianna/space-game-101/releases/tag/v0.2) - Working playable game with score and player death; enemy is still indestructible.
+- [v0.2](https://github.com/hvianna/space-game-101/releases/tag/v0.2) - Playable game with working score, player death and one indestructible enemy.
 - [v0.1](https://github.com/hvianna/space-game-101/releases/tag/v0.1) - Implements basic game structure and working "attract mode" (not playable).
